@@ -17,6 +17,11 @@ struct MathGameView: View {
   // Add state for helper mode
   @State private var helperModeEnabled = true
 
+  // Animation states
+  @State private var operationOpacity = 1.0
+  @State private var operationScale = 1.0
+  @State private var isShowingProblem = true
+
   init() {
     // Connect the view models
     gameViewModel.keyboardViewModel = keyboardViewModel
@@ -62,49 +67,82 @@ struct MathGameView: View {
 
   let currentProblemNumbersSize: CGFloat = 50
 
+  // Function to animate problem transition
+  func animateNewProblem() {
+    withAnimation(.easeOut(duration: 0.2)) {
+      operationOpacity = 0
+      operationScale = 0.8
+      isShowingProblem = false
+    }
+
+    // Quick delay then show new problem
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+      // Generate new problem
+      gameViewModel.generateNewProblem()
+
+      // Animate in the new problem
+      withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+        operationOpacity = 1
+        operationScale = 1
+        isShowingProblem = true
+      }
+    }
+  }
+
   var body: some View {
     ZStack {
       Color.gray.opacity(0.2)
         .ignoresSafeArea()
 
       VStack {
-        RoundedRectangle(cornerRadius: 15)
-          .frame(height: 50)
-          .foregroundStyle(.background)
-          .padding(.horizontal)
+        // Top bar with difficulty and score
+        ZStack {
+          RoundedRectangle(cornerRadius: 15)
+            .frame(height: 50)
+            .foregroundStyle(Color.gray.opacity(0.2))
+
+          Text(gameViewModel.progressInfo)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(.white)
+        }
+        .padding(.horizontal)
 
         Spacer()
 
         // Math problem display
         HStack(spacing: 10) {
-            Spacer()
+          Spacer()
 
-            // Fixed position for the operation
-            Text(gameViewModel.currentProblem.displayText)
+          // Fixed position for the operation with animation
+          Text(gameViewModel.currentProblem.displayText)
             .font(.system(size: currentProblemNumbersSize, weight: .bold))
-                .bold()
+            .bold()
+            .opacity(operationOpacity)
+            .scaleEffect(operationScale)
 
-            // Answer field with left-to-right text growth
-            ZStack(alignment: .leading) {
-                // Blinking underline
-                if isUnderlineVisible || gameViewModel.userAnswer.isEmpty == false {
-                    Rectangle()
-                        .frame(width: calculateUnderlineWidth(), height: 2)
-                        .foregroundColor(.white)
-                        .offset(y: 30)
-                }
-
-                Text(gameViewModel.userAnswer)
-                    .font(.system(size: currentProblemNumbersSize, weight: .bold))
-                    .lineLimit(1)
-                    .frame(width: calculateUnderlineWidth(), alignment: .leading)
-                    .foregroundColor(
-                        gameViewModel.isCorrect == nil ? .white :
-                        gameViewModel.isCorrect == true ? .green : .red
-                    )
+          // Answer field with left-to-right text growth
+          ZStack(alignment: .leading) {
+            // Blinking underline
+            if isUnderlineVisible || gameViewModel.userAnswer.isEmpty == false {
+              Rectangle()
+                .frame(width: calculateUnderlineWidth(), height: 2)
+                .foregroundColor(.white)
+                .offset(y: 30)
             }
 
-            Spacer()
+            Text(gameViewModel.userAnswer)
+              .font(.system(size: currentProblemNumbersSize, weight: .bold))
+              .lineLimit(1)
+              .frame(width: calculateUnderlineWidth(), alignment: .leading)
+              .foregroundColor(
+                  gameViewModel.isCorrect == nil ? .white :
+                  gameViewModel.isCorrect == true ? .green : .red
+              )
+          }
+          .opacity(operationOpacity)
+          .scaleEffect(operationScale)
+
+          Spacer()
         }
         .minimumScaleFactor(0.7)
         .padding(.horizontal)
@@ -118,6 +156,15 @@ struct MathGameView: View {
     .onAppear {
       // Start the blinking timer when view appears
       startBlinkingAnimation()
+
+      // Generate initial problem with animation
+      operationOpacity = 0
+      operationScale = 0.8
+
+      withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+        operationOpacity = 1
+        operationScale = 1
+      }
     }
   }
 
