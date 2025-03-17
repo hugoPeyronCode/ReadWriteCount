@@ -1,3 +1,11 @@
+//
+//  NumberKey.swift
+//  ReadWriteCount
+//
+//  Created by Hugo Peyron on 15/03/2025.
+//
+
+
 import SwiftUI
 
 struct NumberKey: View {
@@ -10,10 +18,13 @@ struct NumberKey: View {
     }) {
       Text("\(number)")
         .font(.title)
-        .frame(width: 70, height: 70)
-        .background(Color.blue.opacity(0.2))
+        .fontWeight(.bold)
+        .fontDesign(.rounded)
+        .frame(width: 100, height: 100)
+        .background(.gray.opacity(0.2))
         .foregroundColor(.primary)
-        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .clipShape(RoundedRectangle(cornerRadius: 40))
+
     }
   }
 }
