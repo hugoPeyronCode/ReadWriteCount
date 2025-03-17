@@ -17,7 +17,7 @@ struct NumberKey: View {
       action(number)
     }) {
       Text("\(number)")
-        .font(.title)
+        .font(.largeTitle)
         .fontWeight(.bold)
         .fontDesign(.rounded)
         .frame(width: 100, height: 100)
