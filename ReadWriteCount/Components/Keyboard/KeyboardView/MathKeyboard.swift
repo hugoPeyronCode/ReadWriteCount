@@ -38,11 +38,12 @@ struct MathKeyboard: View {
         }
         
         HStack(spacing: 10) {
-          ActionKey(symbol: "checkmark", backgroundColor: .green, action: viewModel.onCheckPressed, isActive: $viewModel.canValidate)
+          ActionKey(symbol: "", backgroundColor: .gray, action: viewModel.onCheckPressed, isActive: $viewModel.canValidate)
           NumberKey(number: 0, action: viewModel.onDigitPressed)
           ActionKey(symbol: "delete.backward.fill", backgroundColor: .red, action: viewModel.onDeletePressed, isActive: $viewModel.canDelete)
         }
       }
+      .padding(.bottom)
     }
     .offset(y: 40)
 

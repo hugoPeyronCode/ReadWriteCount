@@ -8,21 +8,112 @@
 import SwiftUI
 
 struct MathGameView: View {
-  var gameViewModel = MathGameViewModel()
-  var keyboardViewModel = KeyboardViewModel()
+  @State var gameViewModel = MathGameViewModel()
+  @State var keyboardViewModel = KeyboardViewModel()
 
-  // Add state for the blinking effect
-  @State private var isUnderlineVisible = true
-
-  // Add state for helper mode
-  @State private var helperModeEnabled = true
-
-  // Animation states
   @State private var operationOpacity = 1.0
   @State private var operationScale = 1.0
   @State private var isShowingProblem = true
+  @State private var isUnderlineVisible = true  // Add this back for the blinking effect
+
+  let currentProblemNumbersSize: CGFloat = 50
 
   init() {
+    setupViewModels()
+  }
+
+  var body: some View {
+    ZStack {
+      Color.gray.opacity(0.2).ignoresSafeArea()
+
+      VStack {
+        topProgressBar
+        Spacer()
+        mathProblemDisplay
+        Spacer()
+        MathKeyboard(viewModel: keyboardViewModel)
+      }
+    }
+    .onAppear {
+      configureInitialState()
+    }
+  }
+
+  // MARK: - View Components
+
+  private var topProgressBar : some View {
+    ZStack {
+      RoundedRectangle(cornerRadius: 15)
+        .frame(height: 50)
+        .foregroundStyle(Color.gray.opacity(0.2))
+
+      Text(gameViewModel.progressInfo)
+        .font(.system(size: 15, weight: .medium))
+        .foregroundColor(.primary)
+    }
+    .padding(.horizontal)
+  }
+
+  private var mathProblemDisplay: some View {
+    HStack {
+
+      Spacer(minLength: 20)
+
+      Text(gameViewModel.currentProblem.displayText)
+        .font(.system(size: currentProblemNumbersSize, weight: .bold))
+        .bold()
+        .opacity(operationOpacity)
+        .scaleEffect(operationScale)
+        .fixedSize()
+
+      answerField()
+
+      Spacer(minLength: 20)
+    }
+    .frame(maxWidth: .infinity)
+    .minimumScaleFactor(0.7)
+    .padding(.horizontal)
+  }
+
+  @ViewBuilder
+  private func answerField() -> some View {
+    ZStack(alignment: .leading) {
+      // Trait de soulignement
+      if !gameViewModel.userAnswer.isEmpty || (gameViewModel.userAnswer.isEmpty && isUnderlineVisible) {
+        RoundedRectangle(cornerRadius: 50)
+          .frame(width: calculateUnderlineWidth(), height: 3)
+          .foregroundColor(answerTextColor)
+          .offset(y: 30)
+      }
+
+      Text(gameViewModel.userAnswer.isEmpty ? " " : gameViewModel.userAnswer)
+        .font(.system(size: currentProblemNumbersSize, weight: .bold))
+        .lineLimit(1)
+        .foregroundColor(answerTextColor)
+        .animation(.easeInOut(duration: 0.3), value: gameViewModel.isCorrect)
+        .animation(.easeInOut(duration: 0.3), value: gameViewModel.checkingInProgress)
+        .frame(width: calculateUnderlineWidth(), alignment: .leading)
+    }
+    .frame(width: calculateUnderlineWidth(), alignment: .leading)
+    .fixedSize(horizontal: true, vertical: false)
+    .opacity(operationOpacity)
+    .scaleEffect(operationScale)
+  }
+
+  private var answerTextColor: Color {
+    if gameViewModel.checkingInProgress {
+      return .primary
+    } else if let isCorrect = gameViewModel.isCorrect {
+      return isCorrect ? .green : .red
+    } else {
+
+      return .primary
+    }
+  }
+
+  // MARK: - Setup and Configuration
+
+  private func setupViewModels() {
     // Connect the view models
     gameViewModel.keyboardViewModel = keyboardViewModel
 
@@ -44,30 +135,46 @@ struct MathGameView: View {
     keyboardViewModel.canValidate = false
   }
 
-  // Function to calculate correct underline width
+  private func configureInitialState() {
+    // Start the blinking timer
+    startBlinkingAnimation()
+
+    // Setup initial animation state
+    operationOpacity = 0
+    operationScale = 0.8
+
+    // Animate in the initial problem
+    withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+      operationOpacity = 1
+      operationScale = 1
+    }
+  }
+
+  // MARK: - Helper Methods
+
   private func calculateUnderlineWidth() -> CGFloat {
-    // With helper enabled, match expected answer width
-    if helperModeEnabled {
-      let correctAnswer = String(gameViewModel.currentProblem.correctResult)
-      let digitCount = max(correctAnswer.count, gameViewModel.userAnswer.count)
-      return CGFloat(digitCount * 30) // 30 pixels per digit is a good estimate
-    } else {
-      // Without helper, adjust to current input (minimum width for empty input)
-      return max(60, CGFloat(gameViewModel.userAnswer.count * 30))
-    }
+    // Garantir une largeur minimale même quand vide
+    let correctAnswer = String(gameViewModel.currentProblem.correctResult)
+    let digitCount = max(correctAnswer.count, gameViewModel.userAnswer.count)
+    // Augmenter légèrement la largeur par chiffre pour plus d'espace
+    return CGFloat(max(2, digitCount) * 30)
   }
 
-  var answerBackgroundColor: Color {
-    if let isCorrect = gameViewModel.isCorrect {
-      return isCorrect ? Color.green.opacity(0.3) : Color.red.opacity(0.3)
-    } else {
-      return Color.gray.opacity(0.15)
+  private func startBlinkingAnimation() {
+    // Only blink while the answer is empty
+    let timer = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { _ in
+      if gameViewModel.userAnswer.isEmpty {
+        withAnimation(.easeInOut(duration: 0.2)) {
+          isUnderlineVisible.toggle()  // Toggle visibility for blinking effect
+        }
+      } else {
+        // Keep visible when user types
+        isUnderlineVisible = true
+      }
     }
+    RunLoop.current.add(timer, forMode: .common)
   }
 
-  let currentProblemNumbersSize: CGFloat = 50
-
-  // Function to animate problem transition
   func animateNewProblem() {
     withAnimation(.easeOut(duration: 0.2)) {
       operationOpacity = 0
@@ -80,110 +187,13 @@ struct MathGameView: View {
       // Generate new problem
       gameViewModel.generateNewProblem()
 
-      // Animate in the new problem
+      // Animate in the new problem with a more stable animation
       withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
         operationOpacity = 1
         operationScale = 1
         isShowingProblem = true
       }
     }
-  }
-
-  var body: some View {
-    ZStack {
-      Color.gray.opacity(0.2)
-        .ignoresSafeArea()
-
-      VStack {
-        // Top bar with difficulty and score
-        ZStack {
-          RoundedRectangle(cornerRadius: 15)
-            .frame(height: 50)
-            .foregroundStyle(Color.gray.opacity(0.2))
-
-          Text(gameViewModel.progressInfo)
-            .font(.system(size: 14, weight: .medium))
-            .foregroundColor(.white)
-        }
-        .padding(.horizontal)
-
-        Spacer()
-
-        // Math problem display
-        HStack(spacing: 10) {
-          Spacer()
-
-          // Fixed position for the operation with animation
-          Text(gameViewModel.currentProblem.displayText)
-            .font(.system(size: currentProblemNumbersSize, weight: .bold))
-            .bold()
-            .opacity(operationOpacity)
-            .scaleEffect(operationScale)
-
-          // Answer field with left-to-right text growth
-          ZStack(alignment: .leading) {
-            // Blinking underline
-            if isUnderlineVisible || gameViewModel.userAnswer.isEmpty == false {
-              Rectangle()
-                .frame(width: calculateUnderlineWidth(), height: 2)
-                .foregroundColor(.white)
-                .offset(y: 30)
-            }
-
-            Text(gameViewModel.userAnswer)
-              .font(.system(size: currentProblemNumbersSize, weight: .bold))
-              .lineLimit(1)
-              .frame(width: calculateUnderlineWidth(), alignment: .leading)
-              .foregroundColor(
-                  gameViewModel.isCorrect == nil ? .white :
-                  gameViewModel.isCorrect == true ? .green : .red
-              )
-          }
-          .opacity(operationOpacity)
-          .scaleEffect(operationScale)
-
-          Spacer()
-        }
-        .minimumScaleFactor(0.7)
-        .padding(.horizontal)
-        .offset(y: 10)
-
-        Spacer()
-
-        MathKeyboard(viewModel: keyboardViewModel)
-      }
-    }
-    .onAppear {
-      // Start the blinking timer when view appears
-      startBlinkingAnimation()
-
-      // Generate initial problem with animation
-      operationOpacity = 0
-      operationScale = 0.8
-
-      withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-        operationOpacity = 1
-        operationScale = 1
-      }
-    }
-  }
-
-  // Function to create the blinking effect
-  private func startBlinkingAnimation() {
-    // Only blink while the answer is empty
-    let timer = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { _ in
-      if gameViewModel.userAnswer.isEmpty {
-        withAnimation(.easeInOut(duration: 0.2)) {
-          isUnderlineVisible.toggle()
-        }
-      } else {
-        // Keep visible when user types
-        isUnderlineVisible = true
-      }
-    }
-
-    // Make sure the timer continues running
-    RunLoop.current.add(timer, forMode: .common)
   }
 }
 
